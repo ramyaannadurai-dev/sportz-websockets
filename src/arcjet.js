@@ -2,8 +2,6 @@ import arcjet, { detectBot, shield, slidingWindow } from "@arcjet/node";
 
 const arcjetKey = process.env.ARCJET_KEY;
 const arcjetMode = process.env.ARCJET_MODE === "DRY_RUN" ? "DRY_RUN" : "LIVE";
-console.log("ARCJET_KEY exists:", !!process.env.ARCJET_KEY);
-console.log("ARCJET_MODE:", process.env.ARCJET_MODE);
 
 if (!arcjetKey) throw new Error("ARCJET_KEY environment variable is missing.");
 
@@ -35,6 +33,29 @@ export const wsArcjet = arcjetKey
     })
   : null;
 
+export function securityMiddleware() {
+  return async (req, res, next) => {
+    if (!httpArcjet) return next();
+
+    try {
+      const decision = await httpArcjet.protect(req);
+
+      if (decision.isDenied()) {
+        if (decision.reason.isRateLimit()) {
+          return res.status(429).json({ error: "Too many requests." });
+        }
+
+        return res.status(403).json({ error: "Forbidden." });
+      }
+    } catch (e) {
+      console.error("Arcjet middleware error", e);
+      return res.status(503).json({ error: "Service Unavailable" });
+    }
+
+    next();
+  };
+}
+
 // export function securityMiddleware() {
 //   return async (req, res, next) => {
 //     if (!httpArcjet) return next();
@@ -57,33 +78,33 @@ export const wsArcjet = arcjetKey
 //     next();
 //   };
 // }
-export function securityMiddleware() {
-  return async (req, res, next) => {
-    console.log("Arcjet middleware running");
+// export function securityMiddleware() {
+//   return async (req, res, next) => {
+//     console.log("Arcjet middleware running");
 
-    if (!httpArcjet) {
-      console.log("Arcjet NOT initialized");
-      return next();
-    }
+//     if (!httpArcjet) {
+//       console.log("Arcjet NOT initialized");
+//       return next();
+//     }
 
-    try {
-      const decision = await httpArcjet.protect(req);
-      console.log("Arcjet decision:", decision);
+//     try {
+//       const decision = await httpArcjet.protect(req);
+//       console.log("Arcjet decision:", decision);
 
-      if (decision.isDenied()) {
-        console.log("Denied");
-        return res.status(429).json({ error: "Too many requests" });
-      }
+//       if (decision.isDenied()) {
+//         console.log("Denied");
+//         return res.status(429).json({ error: "Too many requests" });
+//       }
 
-      if (decision.isAllowed()) {
-        console.log("Allowed");
-        return next();
-      }
+//       if (decision.isAllowed()) {
+//         console.log("Allowed");
+//         return next();
+//       }
 
-      return res.status(403).json({ error: "Forbidden" });
-    } catch (err) {
-      console.error("Arcjet error:", err);
-      return res.status(503).json({ error: "Service Unavailable" });
-    }
-  };
-}
+//       return res.status(403).json({ error: "Forbidden" });
+//     } catch (err) {
+//       console.error("Arcjet error:", err);
+//       return res.status(503).json({ error: "Service Unavailable" });
+//     }
+//   };
+// }
