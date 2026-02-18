@@ -1,5 +1,8 @@
+import AgentAPI from "apminsight";
+AgentAPI.config();
+
 import express from "express";
-import { matchesRouter } from "./route/matches.js";
+import { matchRouter } from "./route/matches.js";
 import http from "http";
 import { attachWebSocketServer } from "./ws/server.js";
 import { securityMiddleware } from "./arcjet.js";
@@ -17,7 +20,7 @@ app.get("/", (req, res) => {
 });
 app.use(securityMiddleware());
 
-app.use("/matches", matchesRouter);
+app.use("/matches", matchRouter);
 app.use("/matches/:id/commentary", commentaryRouter);
 
 const { broadcastMatchCreated } = attachWebSocketServer(server);
